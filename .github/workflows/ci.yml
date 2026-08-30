@@ -119,7 +119,7 @@ jobs:
       - uses: ./.github/actions/setup
       - run: echo "# Typecheck / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
       # Not redundant with build: next build typechecks its own project, but
-      # tsup (reporter) and eve build (agent) do not.
+      # tsup (reporter) and eve build (the eve app) do not.
       - run: pnpm exec turbo run typecheck --filter=${{ matrix.package }}
 
   test:
@@ -224,7 +224,14 @@ jobs:
           # semantic-release needs full history and all tags to work out which
           # commits belong to this release.
           fetch-depth: 0
-          persist-credentials: false
+          # Push the version commit over SSH using the write deploy key. `main`
+          # requires pull requests, and a deploy key is the only actor this
+          # repository can register as a ruleset bypass — the GitHub Actions app
+          # is refused with "must be part of the ruleset source or owner
+          # organization", so GITHUB_TOKEN cannot push to `main` at all.
+          # Credentials deliberately persist past checkout: semantic-release
+          # pushes later in the job, long after this step.
+          ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
 
       - uses: ./.github/actions/setup
         with:
