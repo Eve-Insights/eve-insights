@@ -187,11 +187,14 @@ jobs:
   release:
     name: Release
     needs: [ci]
-    # Must stay on one line: a folded (>) scalar keeps newlines for any
-    # more-indented continuation line, and GitHub cannot evaluate the result.
-    # needs.ci.result is checked explicitly rather than relying on an implicit
-    # success(), which a custom `if:` would otherwise replace.
-    if: needs.ci.result == 'success' && github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref_name, 'release/'))
+    # `!cancelled()` is required, not decorative: GitHub propagates a skip down
+    # the whole dependency chain, and when no workspace is affected every matrix
+    # job is skipped, which would skip this job too. `ci` escapes the same way.
+    # `always()` would publish from a cancelled run, so it is deliberately not used.
+    # needs.ci.result is then what actually gates publishing.
+    # Keep on one line: a folded (>) scalar preserves newlines for more-indented
+    # continuation lines and GitHub cannot evaluate the result.
+    if: ${{ !cancelled() && needs.ci.result == 'success' && github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref_name, 'release/')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
