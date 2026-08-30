@@ -1,10 +1,9 @@
 import type { UserConfig } from "@commitlint/types";
 
 const scopes = [
-  "website",
-  "docs",
-  "platform",
-  "agent",
+  "insights",
+  "web",
+  "eve",
   "reporter",
   "repo",
   "ci",
