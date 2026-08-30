@@ -2,61 +2,155 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, "release/*", "hotfix/*"]
   pull_request:
+    branches: [main, develop, "release/*"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Optional. When TURBO_TOKEN/TURBO_TEAM are set as secrets, unchanged tasks
+  # are restored from the remote cache instead of re-run.
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
 jobs:
-  verify:
-    name: Lint, typecheck, build & test
+  # Works out which workspaces a task actually has to run for, using Turborepo's
+  # own dependency graph — a change to the reporter fans out to everything that
+  # depends on it, and a change to root config invalidates all of them.
+  affected:
+    name: Detect affected workspaces
+    runs-on: ubuntu-latest
+    outputs:
+      lint: ${{ steps.detect.outputs.lint }}
+      typecheck: ${{ steps.detect.outputs.typecheck }}
+      test: ${{ steps.detect.outputs.test }}
+      build: ${{ steps.detect.outputs.build }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Detect
+        id: detect
+        run: |
+          set -euo pipefail
+
+          # Compare against the PR's base, or the previous commit on a push.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          # A new branch reports an all-zero "before"; fall back to running
+          # everything rather than silently skipping.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "No usable base ref — running every workspace."
+            FILTER=""
+          else
+            echo "Comparing against $BASE"
+            FILTER="--filter=...[$BASE]"
+          fi
+
+          for TASK in lint typecheck test build; do
+            # shellcheck disable=SC2086
+            MATRIX=$(pnpm exec turbo run "$TASK" $FILTER --dry-run=json 2>/dev/null \
+              | jq -c '[.tasks[].package | select(. != "//")
+                        | {name: sub("^@eve-insights/"; ""), package: .}]
+                       | unique_by(.package)')
+            echo "$TASK: $MATRIX"
+            echo "$TASK=$MATRIX" >> "$GITHUB_OUTPUT"
+          done
+
+  lint:
+    name: Lint / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.lint != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.affected.outputs.lint) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: echo "# Lint / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm exec turbo run lint --filter=${{ matrix.package }}
+
+  # Root config, workflows and .agents metadata sit outside every workspace, so
+  # the workspace matrix above would never cover them. Cheap enough to always run.
+  lint-repo:
+    name: Lint / repo
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: echo "# Lint / repo" >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm lint
 
-      - uses: pnpm/action-setup@v4
+  typecheck:
+    name: Typecheck / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.typecheck != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.affected.outputs.typecheck) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: echo "# Typecheck / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+      # Not redundant with build: next build typechecks its own project, but
+      # tsup (reporter) and eve build (agent) do not.
+      - run: pnpm exec turbo run typecheck --filter=${{ matrix.package }}
 
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
+  test:
+    name: Test / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.test != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.affected.outputs.test) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      # Vitest's job-summary header is a fixed string, so name the page first.
+      - run: echo "# Test / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm exec turbo run test --filter=${{ matrix.package }}
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Build
-        run: pnpm build
-
-      - name: Test
-        run: pnpm test
+  build:
+    name: Build / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.build != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.affected.outputs.build) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: echo "# Build / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm exec turbo run build --filter=${{ matrix.package }}
 
   commitlint:
-    name: Validate commit messages
+    name: Commit messages
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      - uses: ./.github/actions/setup
       # The local commit-msg hook can be bypassed with --no-verify, so this is
       # the gate that actually protects semantic-release's version inference.
       - name: Lint commits in this pull request
@@ -65,3 +159,23 @@ jobs:
           --from ${{ github.event.pull_request.base.sha }}
           --to ${{ github.event.pull_request.head.sha }}
           --verbose
+
+  # Single stable check to make required-status-checks practical: the matrix
+  # jobs above vary in number and can be skipped entirely, which a required
+  # check cannot tolerate.
+  ci:
+    name: CI
+    if: always()
+    needs: [affected, lint, lint-repo, typecheck, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed
+        run: |
+          set -euo pipefail
+          RESULTS='${{ toJSON(needs) }}'
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$RESULTS" | jq -e 'any(.[]; .result == "failure" or .result == "cancelled")' >/dev/null; then
+            echo "::error::At least one CI job failed."
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped as unaffected."

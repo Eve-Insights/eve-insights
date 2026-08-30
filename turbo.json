@@ -21,5 +21,6 @@
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalPassThroughEnv": ["GITHUB_REF_NAME", "GITHUB_TOKEN", "NPM_TOKEN", "NODE_AUTH_TOKEN"]
 }

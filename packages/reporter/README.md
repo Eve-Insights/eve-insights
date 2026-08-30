@@ -1,6 +1,6 @@
 # @eve-insights/reporter
 
-Ships [Eve](https://eve.dev) eval telemetry to an [Eve Insights](https://github.com/jimdrury/eve-insights) platform instance.
+Ships [Eve](https://eve.dev) eval telemetry to an [Eve Insights](https://github.com/Eve-Insights/eve-insights) platform instance.
 
 > **Status: scaffold.** This package builds and publishes, but has no
 > implementation yet. The API below is the intended shape, not a shipped one.

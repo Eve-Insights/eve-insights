@@ -1,0 +1,158 @@
+name: Back-merge main to develop
+
+# gitflow requires everything that lands on main (release commits, hotfixes) to
+# flow back into develop, or the branches drift. GitHub has no native
+# back-merge, so this does it.
+#
+# Both main and develop are protected and reject direct pushes, so the merge
+# always goes through a pull request. When it applies cleanly the PR is set to
+# auto-merge and needs no attention; when it conflicts it stays open for a human.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: backmerge
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  backmerge:
+    name: Merge main into develop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether a back-merge is needed
+        id: check
+        run: |
+          set -euo pipefail
+
+          if ! git ls-remote --exit-code --heads origin develop >/dev/null 2>&1; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no-develop" >> "$GITHUB_OUTPUT"
+            echo "::notice::No develop branch; nothing to back-merge."
+            exit 0
+          fi
+
+          # Already merged? Then main is an ancestor of develop and there is
+          # nothing to do.
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=up-to-date" >> "$GITHUB_OUTPUT"
+            echo "::notice::develop already contains main."
+            exit 0
+          fi
+
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Detect conflicts
+        id: conflicts
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Trial merge in a throwaway worktree so we can report up front
+          # whether a human is needed.
+          git switch --detach origin/develop
+          if git merge --no-commit --no-ff origin/main >/dev/null 2>&1; then
+            echo "clean=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "clean=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::main conflicts with develop; the back-merge PR will need manual resolution."
+          fi
+          git merge --abort 2>/dev/null || true
+
+      - name: Open the back-merge pull request
+        id: pr
+        if: steps.check.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLEAN: ${{ steps.conflicts.outputs.clean }}
+        run: |
+          set -euo pipefail
+          BRANCH="backmerge/main-to-develop-${GITHUB_SHA::7}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          EXISTING=$(gh pr list --base develop --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::PR #$EXISTING is already open for this back-merge."
+            echo "number=$EXISTING" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git switch -c "$BRANCH" origin/main
+          git push origin "$BRANCH"
+
+          {
+            echo "Brings \`main\` back into \`develop\` so the branches do not drift."
+            echo
+            if [ "$CLEAN" = "true" ]; then
+              echo "The merge applies cleanly, so this PR is set to auto-merge and will"
+              echo "land on its own once checks pass. No action needed."
+            else
+              echo "⚠️ **This merge conflicts and needs manual resolution.**"
+              echo
+              echo "Until it is merged, \`develop\` is missing commits that are live on"
+              echo "\`main\`. Please resolve it promptly."
+            fi
+            echo
+            echo "Opened automatically by the **Back-merge main to develop** workflow."
+          } > pr-body.md
+
+          NUMBER=$(gh pr create \
+            --base develop \
+            --head "$BRANCH" \
+            --title "chore: back-merge main into develop" \
+            --body-file pr-body.md \
+            | grep -oE '[0-9]+$')
+
+          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge on a clean back-merge
+        if: steps.check.outputs.needed == 'true' && steps.conflicts.outputs.clean == 'true' && steps.pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          # Auto-merge needs the repo setting enabled; fall back to merging now.
+          if gh pr merge "$NUMBER" --auto --merge 2>/dev/null; then
+            echo "::notice::Auto-merge enabled on PR #$NUMBER."
+          elif gh pr merge "$NUMBER" --merge 2>/dev/null; then
+            echo "::notice::Merged PR #$NUMBER directly."
+          else
+            echo "::warning::Could not auto-merge PR #$NUMBER; merge it manually."
+          fi
+
+      - name: Summary
+        if: always()
+        env:
+          NEEDED: ${{ steps.check.outputs.needed }}
+          REASON: ${{ steps.check.outputs.reason }}
+          CLEAN: ${{ steps.conflicts.outputs.clean }}
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          {
+            echo "## Back-merge"
+            echo
+            if [ "$NEEDED" != "true" ]; then
+              case "$REASON" in
+                no-develop)  echo "No \`develop\` branch — skipped." ;;
+                up-to-date)  echo "\`develop\` already contains \`main\`. Nothing to do." ;;
+                *)           echo "Skipped." ;;
+              esac
+            elif [ "$CLEAN" = "true" ]; then
+              echo "Opened PR #${NUMBER} and set it to auto-merge. No action needed."
+            else
+              echo "⚠️ Opened PR #${NUMBER} — **conflicts need manual resolution**."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

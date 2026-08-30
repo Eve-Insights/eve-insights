@@ -1,5 +1,18 @@
 import type { UserConfig } from "@commitlint/types";
 
+const scopes = [
+  "website",
+  "docs",
+  "platform",
+  "agent",
+  "reporter",
+  "repo",
+  "ci",
+  "deps",
+  // Used by semantic-release's own version commits.
+  "release",
+];
+
 /**
  * Angular commit convention. semantic-release derives every version bump and
  * changelog entry from these messages, so the format is enforced rather than
@@ -8,16 +21,29 @@ import type { UserConfig } from "@commitlint/types";
 const config: UserConfig = {
   extends: ["@commitlint/config-angular"],
   rules: {
-    "scope-enum": [
+    // The Angular preset omits `chore`, but semantic-release writes
+    // `chore(release): x.y.z` commits and those must pass the CI check when a
+    // release branch is merged.
+    "type-enum": [
       2,
       "always",
-      ["website", "docs", "platform", "agent", "reporter", "repo", "ci", "deps"],
+      [
+        "build",
+        "chore",
+        "ci",
+        "docs",
+        "feat",
+        "fix",
+        "perf",
+        "refactor",
+        "revert",
+        "style",
+        "test",
+      ],
     ],
-    "subject-case": [2, "always", "lower-case"],
+    "scope-enum": [2, "always", scopes],
   },
-  prompt: {
-    scopes: ["website", "docs", "platform", "agent", "reporter", "repo", "ci", "deps"],
-  },
+  prompt: { scopes },
 };
 
 export default config;

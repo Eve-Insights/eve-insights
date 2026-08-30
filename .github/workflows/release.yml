@@ -2,10 +2,12 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, "release/*"]
 
 concurrency:
-  group: release
+  # Per-branch: a develop prerelease and a main release are independent and
+  # must never cancel each other, but two pushes to the same branch must queue.
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -26,20 +28,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
+      - uses: ./.github/actions/setup
         with:
-          node-version-file: .nvmrc
-          cache: pnpm
           registry-url: https://registry.npmjs.org
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm build
 
+      # Publishing uses npm trusted publishing (OIDC) when the package has a
+      # trusted publisher registered for this repo + workflow filename; the
+      # `id-token: write` permission above is what makes that possible.
+      # NPM_TOKEN is only a fallback for the very first publish, before the
+      # package exists on npm and a trusted publisher can be configured.
+      # Once OIDC is working, delete the secret and the two env lines below.
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

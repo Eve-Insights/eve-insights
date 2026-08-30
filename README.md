@@ -1,6 +1,6 @@
 # Eve Insights
 
-[![CI](https://github.com/jimdrury/eve-insights/actions/workflows/ci.yml/badge.svg)](https://github.com/jimdrury/eve-insights/actions/workflows/ci.yml)
+[![CI](https://github.com/Eve-Insights/eve-insights/actions/workflows/ci.yml/badge.svg)](https://github.com/Eve-Insights/eve-insights/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 Telemetry and reporting for [Eve](https://eve.dev) agent evals — think Sorry Cypress, but for Eve.
@@ -28,7 +28,7 @@ Only `@eve-insights/reporter` is published to npm. Everything else is private.
 Requires **Node 24** (see `.nvmrc`) and **pnpm**.
 
 ```bash
-git clone https://github.com/jimdrury/eve-insights.git
+git clone https://github.com/Eve-Insights/eve-insights.git
 cd eve-insights
 pnpm install
 pnpm dev
