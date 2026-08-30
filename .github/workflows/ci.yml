@@ -187,11 +187,11 @@ jobs:
   release:
     name: Release
     needs: [ci]
-    if: >
-      github.event_name == 'push' &&
-      (github.ref_name == 'main' ||
-       github.ref_name == 'develop' ||
-       startsWith(github.ref_name, 'release/'))
+    # Must stay on one line: a folded (>) scalar keeps newlines for any
+    # more-indented continuation line, and GitHub cannot evaluate the result.
+    # needs.ci.result is checked explicitly rather than relying on an implicit
+    # success(), which a custom `if:` would otherwise replace.
+    if: needs.ci.result == 'success' && github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref_name, 'release/'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
