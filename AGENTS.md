@@ -3,15 +3,15 @@
 
 Telemetry and reporting for [Eve](https://eve.dev) agent evals — "Sorry Cypress, but for Eve".
 
-**The product is not built yet.** The repo is a working scaffold: tooling, CI, and the
-release pipeline all run end to end, but `packages/reporter/src/index.ts` is a placeholder
-and the platform is stock `create-next-app`. The roadmap in `README.md` is the source of
-truth for what lands next (shared wire-format types → `EvalReporter` → ingest endpoint →
-persistence → dashboard).
+**The dashboard is not built yet.** The repository now has the first telemetry
+slice end to end: `@eve-insights/reporter` sends versioned, chunked eval
+lifecycle data to the Insights ingest routes, and Firestore persists it behind
+the adapter contract. The roadmap in `README.md` is the source of truth for
+what lands next (authentication → read APIs → dashboard → more adapters).
 
 ## Layout
 
-pnpm workspaces (`apps/*`, `packages/*`) orchestrated by Turborepo.
+pnpm workspaces (`apps/*`, `packages/*`, `adapters/*`) orchestrated by Turborepo.
 Node 24 (`.nvmrc`), pnpm 11.
 
 | Path | Package | Port | Role |
@@ -20,9 +20,18 @@ Node 24 (`.nvmrc`), pnpm 11.
 | `apps/web` | `@eve-insights/web` | 3001 | fumadocs site — marketing landing in `src/app/(home)`, docs in `src/app/docs` from MDX under `content/docs` |
 | `apps/eve` | `@eve-insights/eve` | 3002 | Example eve agent; doubles as the test fixture |
 | `packages/reporter` | `@eve-insights/reporter` | — | tsup library, ships eval results to the platform |
+| `adapters/types` | `@eve-insights/adapter-types` | — | First of the private `adapters/*` libraries `apps/insights` is built from |
+| `adapters/firestore` | `@eve-insights/adapter-firestore` | — | Firestore implementation used by the Insights ingest routes |
+| `adapters/mysql` | `@eve-insights/adapter-mysql` | — | MySQL implementation used by the Insights ingest routes |
+| `adapters/sqlite` | `@eve-insights/adapter-sqlite` | — | SQLite implementation used by the Insights ingest routes |
+| `adapters/supabase` | `@eve-insights/adapter-supabase` | — | Supabase implementation used by the Insights ingest routes |
 
 `@eve-insights/reporter` is the **only** published package; everything else is `private: true`.
 `eve` is a peer dependency there, and `external` in `tsup.config.ts` — never bundle it.
+
+`packages/*` holds code that ships to users, `adapters/*` code that only runs here.
+`adapters/<name>` is `@eve-insights/adapter-<name>`, tsup-built to `dist` like the reporter
+but ESM-only, since nothing there is published — see `adapters/README.md`.
 
 ## Commands
 
@@ -32,6 +41,7 @@ Run from the root; each is a Turborepo task fanned out across workspaces.
 pnpm dev          # every app at once
 pnpm build
 pnpm test
+pnpm eval         # eve evals; live model calls, so not part of CI
 pnpm typecheck
 pnpm lint         # biome check .
 pnpm lint:fix     # safe fixes + format
@@ -54,6 +64,25 @@ pnpm --filter @eve-insights/reporter exec vitest run -t "package name"
 
 Each workspace has its own `vitest.config.ts` with a `name` (used in CI annotations):
 `node` environment for the reporter and agent, `jsdom` for the Next apps.
+
+Root `pnpm eval` forwards `AI_GATEWAY_API_KEY`, `VERCEL_OIDC_TOKEN`,
+`EVE_INSIGHTS_URL`, and `EVE_INSIGHTS_AGENT_NAME`. The Insights reporter
+registers only when `EVE_INSIGHTS_URL` is set.
+
+**Evals are not vitest and are not in CI.** `apps/eve` carries the eval suite under
+`apps/eve/evals/` (`*.eval.ts`, discovered by path, with one required `evals.config.ts`).
+`eve eval` boots a real dev server and drives the agent against a live model, so a run
+costs tokens and needs `AI_GATEWAY_API_KEY` or a fresh `VERCEL_OIDC_TOKEN`. Run it
+deliberately, never as part of `pnpm test`:
+
+```bash
+pnpm --filter @eve-insights/eve eval                            # everything
+pnpm --filter @eve-insights/eve eval --exclude-tag model-dependent  # the stable core
+pnpm --filter @eve-insights/eve eval tools --verbose            # one directory
+```
+
+The suite exists to exercise every eval surface eve offers, so it doubles as the
+reference for what `@eve-insights/reporter` will consume. See `apps/eve/README.md`.
 
 ## Tooling conventions
 
@@ -84,8 +113,8 @@ Read `CONTRIBUTING.md` before touching anything in `.github/workflows/` or
 `release.config.ts` — it documents the whole model. The parts that constrain day-to-day work:
 
 **Angular conventional commits, enforced.** `type(scope): subject`, with the scope drawn
-from a fixed enum in `commitlint.config.ts`: `insights`, `web`, `eve`,
-`reporter`, `repo`, `ci`, `deps`, `release`. semantic-release derives every version bump
+from a fixed enum in `commitlint.config.ts`: `insights`, `web`, `eve`, `reporter`,
+`adapters`, `repo`, `ci`, `deps`, `release`. semantic-release derives every version bump
 from these, so CI re-lints all commits on a PR — `--no-verify` will not sneak one through.
 **Never bump a version or edit `CHANGELOG.md` by hand.**
 

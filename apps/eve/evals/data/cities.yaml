@@ -1,0 +1,15 @@
+# Dataset fixture for `dataset.eval.ts`, loaded with `loadYaml`.
+# Each row fans out into its own eval: dataset/0000, dataset/0001, dataset/0002.
+evals:
+  - task: "Brooklyn is sunny and warm"
+    city: Brooklyn
+    condition: Sunny
+    temperatureF: 72
+  - task: "Manchester is wet and mild"
+    city: Manchester
+    condition: Raining
+    temperatureF: 54
+  - task: "Reykjavik is snowy and freezing"
+    city: Reykjavik
+    condition: Snowing
+    temperatureF: 28

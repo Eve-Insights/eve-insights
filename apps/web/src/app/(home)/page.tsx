@@ -34,8 +34,8 @@ export default function HomePage() {
           >
             Eve
           </a>
-          . Run your evals, ship the results somewhere you own, and see how your agent&rsquo;s
-          quality moves over time.
+          . Run your evals, ship the results somewhere you own, and see how your
+          agent&rsquo;s quality moves over time.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Link
@@ -57,7 +57,9 @@ export default function HomePage() {
           {features.map((feature) => (
             <div key={feature.title} className="flex flex-col gap-2">
               <h2 className="text-sm font-medium">{feature.title}</h2>
-              <p className="text-sm text-fd-muted-foreground text-pretty">{feature.body}</p>
+              <p className="text-sm text-fd-muted-foreground text-pretty">
+                {feature.body}
+              </p>
             </div>
           ))}
         </div>

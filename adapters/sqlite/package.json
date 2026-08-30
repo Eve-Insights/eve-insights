@@ -1,0 +1,41 @@
+{
+  "name": "@eve-insights/adapter-sqlite",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SQLite persistence adapter for Eve Insights",
+  "license": "MIT",
+  "author": "Jim Drury <jim@jimdrury.co.uk>",
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "lint": "biome check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@eve-insights/adapter-types": "workspace:*",
+    "@libsql/client": "latest",
+    "drizzle-orm": "latest",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@types/node": "^24.13.3",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

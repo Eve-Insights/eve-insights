@@ -5,6 +5,7 @@ const scopes = [
   "web",
   "eve",
   "reporter",
+  "adapters",
   "repo",
   "ci",
   "deps",

@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// Emulator-only rules: everything is open. Do not ship these to a real project.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

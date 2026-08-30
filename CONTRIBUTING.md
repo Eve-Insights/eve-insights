@@ -70,7 +70,7 @@ type(scope): subject
 **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`,
 `ci`, `chore`, `revert`
 
-**Scopes:** `insights`, `web`, `eve`, `reporter`, `repo`, `ci`, `deps`
+**Scopes:** `insights`, `web`, `eve`, `reporter`, `adapters`, `repo`, `ci`, `deps`, `release`
 
 ```
 feat(reporter): send run summaries to the ingest endpoint

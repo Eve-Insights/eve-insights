@@ -1,0 +1,51 @@
+---
+description: Keep Next.js entrypoints and route handlers framework-focused and correctly typed
+globs: "**/{page,layout,forbidden,unauthorized,not-found,route}.{ts,tsx}"
+alwaysApply: false
+---
+
+# Next.js Entrypoint Conventions
+
+Treat `page.tsx`, `layout.tsx`, `forbidden.tsx`, `unauthorized.tsx`, and
+`not-found.tsx` as Next.js entrypoints, not general-purpose modules:
+
+- Define only the framework-supported entrypoint component and supported
+  Next.js exports. Move application components and helper functions to
+  sibling modules.
+- Name the main component after the file (`Page`, `Layout`, `Forbidden`,
+  `Unauthorized`, or `NotFound`). Prefer a typed `const` and a named default
+  export:
+
+  ```tsx
+  import type { FC } from 'react'
+
+  const Page: FC<PageProps<'/path-to-route'>> = async ({ params }) => {
+    // ...
+  }
+
+  export default Page
+  ```
+
+- Use generated global route types where available: `PageProps<'/route'>`,
+  `LayoutProps<'/route'>`, and `RouteContext<'/api/route'>`. Do not redeclare
+  `params`, `searchParams`, or route context types without a good reason.
+- Do not use an anonymous or default function declaration such as
+  `export default async function AgentPage(...)`.
+
+Route handlers follow the same named-implementation pattern. Define each
+supported HTTP method as a `const`, type its context with `RouteContext` when
+needed, and export it separately:
+
+```ts
+const GET = async (
+  request: Request,
+  context: RouteContext<'/api/resource/[id]'>,
+) => {
+  // ...
+}
+
+export { GET }
+```
+
+Do not inline-export handlers with `export const GET = ...`. Use
+`export { GET }` because `export GET` is not valid TypeScript module syntax.
