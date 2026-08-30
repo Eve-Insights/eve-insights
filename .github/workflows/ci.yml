@@ -11,15 +11,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Biome is a single repo-wide pass covering root config as well as the
-  # workspaces, so it stays one check. Its output names the offending file.
+  # Fans out like the other tasks so a lint failure names its workspace.
+  # The `repo` entry runs the authoritative full-repo pass: nine files
+  # (biome.json, turbo.json, release.config.ts, .agents/…) live outside every
+  # workspace, and a pure workspace matrix would silently stop checking them.
   lint:
-    name: Lint
+    name: Lint / ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: website, path: web/website }
+          - { name: docs, path: web/docs }
+          - { name: platform, path: apps/platform }
+          - { name: agent, path: examples/agent }
+          - { name: reporter, path: packages/reporter }
+          - { name: repo, path: "." }
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      - run: pnpm lint
+      - name: Name the summary page after the workspace it covers.
+        run: echo "# Lint / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm exec biome check ${{ matrix.path }}
 
   # Typecheck, test and build fan out per workspace so a failure names the
   # workspace in the checks list instead of hiding inside one combined job.
