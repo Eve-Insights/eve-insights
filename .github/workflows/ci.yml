@@ -203,8 +203,13 @@ jobs:
     # needs.ci.result is then what actually gates publishing.
     # Keep on one line: a folded (>) scalar preserves newlines for more-indented
     # continuation lines and GitHub cannot evaluate the result.
-    if: ${{ !cancelled() && needs.ci.result == 'success' && ((github.event_name == 'push' && (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))) || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+    if: ${{ !cancelled() && needs.ci.result == 'success' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref_name, 'release/')) }}
     runs-on: ubuntu-latest
+    # `beta` requires a reviewer, so a release from develop appears in the run
+    # and waits for someone to approve it — the pipeline pauses rather than
+    # needing a separate manual trigger. `release` has no reviewers, so main and
+    # release/* publish without interruption.
+    environment: ${{ github.ref_name == 'develop' && 'beta' || 'release' }}
     permissions:
       contents: write
       issues: write
