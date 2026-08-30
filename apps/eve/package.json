@@ -1,0 +1,33 @@
+{
+  "name": "@eve-insights/eve",
+  "version": "0.0.0",
+  "type": "module",
+  "imports": {
+    "#*": "./agent/*",
+    "#evals/*": "./evals/*"
+  },
+  "scripts": {
+    "build": "eve build",
+    "deploy": "eve deploy",
+    "dev": "eve dev --port 3002",
+    "eval": "eve eval",
+    "lint": "biome check",
+    "start": "eve start",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@vercel/connect": "1.0.0",
+    "ai": "^7.0.58",
+    "eve": "^0.47.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "typescript": "7.0.2",
+    "vitest": "^4.1.11"
+  },
+  "private": true,
+  "license": "MIT"
+}

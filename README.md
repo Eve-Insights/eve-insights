@@ -15,10 +15,9 @@ Run your evals, ship the results somewhere you own, and see how your agent's qua
 
 | Workspace | Package | Port | Role |
 | --- | --- | --- | --- |
-| `web/website` | `@eve-insights/website` | 3003 | Marketing site |
-| `web/docs` | `@eve-insights/docs` | 3001 | Documentation ([fumadocs](https://fumadocs.dev)) |
-| `apps/platform` | `@eve-insights/platform` | 3000 | The reporter — receives eval telemetry and reports on it |
-| `examples/agent` | `@eve-insights/agent` | 3002 | Example Eve agent; doubles as our test fixture |
+| `apps/insights` | `@eve-insights/insights` | 3000 | The product — receives eval telemetry and reports on it |
+| `apps/web` | `@eve-insights/web` | 3001 | Marketing site and documentation ([fumadocs](https://fumadocs.dev)) |
+| `apps/eve` | `@eve-insights/eve` | 3002 | Example Eve agent; doubles as our test fixture |
 | `packages/reporter` | `@eve-insights/reporter` | — | Library that ships Eve eval results to the platform |
 
 Only `@eve-insights/reporter` is published to npm. Everything else is private.
@@ -37,8 +36,30 @@ pnpm dev
 `pnpm dev` starts every app at once. To run just one:
 
 ```bash
-pnpm --filter @eve-insights/platform dev
+pnpm --filter @eve-insights/insights dev
 ```
+
+## Vercel deployments
+
+Each app is deployed as its own Vercel project from this repository:
+
+- `apps/insights`
+- `apps/web`
+- `apps/eve`
+
+For each Vercel project, set the Root Directory to the corresponding app path
+and enable **Include source files outside of the Root Directory in the Build
+Step**. Leave the Install Command automatic so Vercel installs from the
+repository root and preserves pnpm workspace linking.
+
+The app-level `vercel.json` files run the matching package through the root
+Turborepo and use `turbo-ignore` to skip deployments when the app and its
+workspace dependencies are unchanged. Vercel provides the Turborepo Remote
+Cache automatically for builds running on Vercel.
+
+When an app starts consuming an internal package, declare that dependency with
+the `workspace:*` protocol. Turborepo will then build the dependency first and
+Vercel will include changes to it when deciding whether the app is affected.
 
 ## Commands
 

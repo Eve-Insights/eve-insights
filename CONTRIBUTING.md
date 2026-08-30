@@ -32,7 +32,7 @@ Scope to one workspace with `--filter`:
 
 ```bash
 pnpm --filter @eve-insights/reporter test
-pnpm --filter @eve-insights/platform dev
+pnpm --filter @eve-insights/insights dev
 ```
 
 ## Code style
@@ -70,11 +70,11 @@ type(scope): subject
 **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`,
 `ci`, `chore`, `revert`
 
-**Scopes:** `website`, `docs`, `platform`, `agent`, `reporter`, `repo`, `ci`, `deps`
+**Scopes:** `insights`, `web`, `eve`, `reporter`, `repo`, `ci`, `deps`
 
 ```
 feat(reporter): send run summaries to the ingest endpoint
-fix(platform): reject payloads without a run id
+fix(insights): reject payloads without a run id
 docs(repo): document the release process
 ```
 
@@ -158,8 +158,22 @@ And three are short-lived:
 | `hotfix/*` | `main` | `main` **and** `develop` | — |
 
 `main` and `develop` are both protected: no direct pushes, no force-pushes, no
-deletion, and all changes arrive by pull request. `feature/*`, `release/*` and
-`hotfix/*` are unprotected, which is what lets automation commit to them.
+deletion, all changes arrive by pull request, and both require the aggregate `CI`
+check to pass. `feature/*`, `release/*` and `hotfix/*` are unprotected, which is
+what lets automation commit to them.
+
+The one exception is the release job's version commit to `main`. `GITHUB_TOKEN`
+cannot push to a protected branch — the GitHub Actions app is not a permissible
+ruleset bypass actor — so the job checks out with a write deploy key held in the
+`RELEASE_SSH_KEY` secret, which is registered as a `DeployKey` bypass on the
+`Main` ruleset. Note that bypass is granted to *any* write deploy key on the
+repository, not just that one.
+
+Never add a `[skip ci]` (or `[no ci]`, `[skip actions]`, …) directive to a commit
+message. GitHub applies skip instructions to `pull_request` as well as `push`, and
+a skipped required check is reported as pending forever — which blocks the merge
+of any PR whose head commit carries one, including the release and back-merge PRs
+that automation opens.
 
 Every branch that publishes does so under its own npm dist-tag, so a prerelease
 can never be installed by someone running `npm install @eve-insights/reporter`.
@@ -184,7 +198,8 @@ flowchart TD
     R ==> RT(["npm @rc"])
     M ==> MT(["npm @latest"])
 
-    R -.->|"only branch that commits<br/>CHANGELOG.md + version"| CL[["packages/reporter/CHANGELOG.md"]]
+    R -.->|"commits rc version"| CL[["packages/reporter/CHANGELOG.md"]]
+    M -.->|"commits stable version<br/>(deploy key)"| CL
 
     classDef perm fill:#1f6feb,stroke:#1f6feb,color:#fff
     classDef temp fill:#8250df,stroke:#8250df,color:#fff

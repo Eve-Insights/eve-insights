@@ -1,7 +1,5 @@
 packages:
   - "apps/*"
-  - "web/*"
-  - "examples/*"
   - "packages/*"
 
 allowBuilds:
