@@ -6,11 +6,11 @@
   "author": "Jim Drury <jim@jimdrury.co.uk>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jimdrury/eve-insights.git",
+    "url": "git+https://github.com/Eve-Insights/eve-insights.git",
     "directory": "packages/reporter"
   },
-  "homepage": "https://github.com/jimdrury/eve-insights#readme",
-  "bugs": "https://github.com/jimdrury/eve-insights/issues",
+  "homepage": "https://github.com/Eve-Insights/eve-insights#readme",
+  "bugs": "https://github.com/Eve-Insights/eve-insights/issues",
   "keywords": [
     "eve",
     "evals",
