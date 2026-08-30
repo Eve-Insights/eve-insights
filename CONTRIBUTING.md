@@ -98,16 +98,21 @@ racing it. Never bump versions or edit `CHANGELOG.md` by hand.
 
 | Branch | Trigger | dist-tag |
 | --- | --- | --- |
-| `develop` | **manual** — Actions → CI → Run workflow, tick `publish` | `beta` |
+| `develop` | runs automatically, then **waits for approval** | `beta` |
 | `release/*` | automatic, on push | `rc` |
 | `main` | automatic, on merge | `latest` |
 
-A beta is published deliberately rather than on every merge to `develop`, so
-day-to-day integration work does not produce a stream of prereleases.
+Merging to `develop` runs the whole pipeline including the release job, but
+that job is bound to the `beta` environment, which requires a reviewer. It
+pauses with **Review deployments** in the run, and publishes only once someone
+approves. Declining leaves nothing published.
 
-> The manual trigger lives in `ci.yml` rather than a workflow of its own
-> because npm's trusted publisher is bound to that exact filename. Moving
-> publishing to another file would break OIDC authentication.
+`main` and `release/*` use the `release` environment, which has no reviewers,
+so they publish without interruption.
+
+> The release job lives in `ci.yml` rather than a workflow of its own because
+> npm's trusted publisher is bound to that exact filename. Moving publishing to
+> another file would break OIDC authentication.
 
 ## Branching model
 
