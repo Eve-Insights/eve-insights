@@ -11,10 +11,9 @@ body:
       label: Affected workspace
       options:
         - "@eve-insights/reporter"
-        - "@eve-insights/platform"
-        - "@eve-insights/docs"
-        - "@eve-insights/website"
-        - "@eve-insights/agent"
+        - "@eve-insights/insights"
+        - "@eve-insights/web"
+        - "@eve-insights/eve"
         - Repository tooling
         - Not sure
     validations:

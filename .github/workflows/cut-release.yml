@@ -1,0 +1,122 @@
+name: Cut release branch
+
+# Manual gate between develop and main. Derives the next stable version from
+# the commits on develop, then opens `release/<version>` from it. Pushing that
+# branch triggers the Release workflow, which publishes an `rc` prerelease and
+# commits the changelog.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Explicit version, e.g. 0.2.0. Leave blank to derive it from the commits on develop."
+        required: false
+        type: string
+      dry_run:
+        description: "Only report the version that would be cut; do not create the branch."
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: cut-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  cut:
+    name: Create release branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — only from develop
+        if: github.ref != 'refs/heads/develop'
+        run: |
+          echo "::error::Run this workflow from the develop branch (got ${{ github.ref_name }})."
+          exit 1
+
+      - uses: actions/checkout@v5
+        with:
+          ref: develop
+          # semantic-release needs full history and tags to work out the bump.
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Determine version
+        id: version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$INPUT_VERSION" ]; then
+            if ! printf '%s' "$INPUT_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::'$INPUT_VERSION' is not a valid x.y.z version."
+              exit 1
+            fi
+            echo "Using supplied version $INPUT_VERSION"
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Treat develop as a plain release branch for this calculation so we
+          # get the stable version (0.2.0) rather than its beta prerelease
+          # (0.2.0-beta.1). --dry-run publishes nothing.
+          pnpm exec semantic-release --dry-run --branches develop 2>&1 | tee release-dry-run.log || true
+
+          VERSION=$(grep -oE 'The next release version is [0-9]+\.[0-9]+\.[0-9]+' release-dry-run.log \
+            | tail -1 | awk '{print $NF}')
+
+          if [ -z "$VERSION" ]; then
+            echo "::error::No releasable commits on develop since the last release — nothing to cut."
+            exit 1
+          fi
+
+          echo "Derived version $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check the branch does not already exist
+        env:
+          BRANCH: release/${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::$BRANCH already exists on the remote."
+            exit 1
+          fi
+          echo "$BRANCH is available"
+
+      - name: Create and push the release branch
+        if: ${{ !inputs.dry_run }}
+        env:
+          BRANCH: release/${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git switch -c "$BRANCH"
+          git push origin "$BRANCH"
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BRANCH: release/${{ steps.version.outputs.version }}
+        run: |
+          {
+            echo "## Release ${VERSION}"
+            echo
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "Dry run — no branch was created."
+              echo
+              echo "Would have created \`${BRANCH}\` from \`develop\`."
+            else
+              echo "Created \`${BRANCH}\` from \`develop\`."
+              echo
+              echo "The Release workflow is now publishing \`${VERSION}-rc.1\` under the \`rc\` dist-tag"
+              echo "and committing the changelog to that branch."
+              echo
+              echo "Next: open a pull request from \`${BRANCH}\` into \`main\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

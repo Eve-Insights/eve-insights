@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // `#evals/*` maps to `./evals/*` literally, so helper imports carry their extension.
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["agent/**/*.ts", "evals/**/*.ts"]
+}

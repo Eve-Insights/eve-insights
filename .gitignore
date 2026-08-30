@@ -34,6 +34,7 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 
 # logs
 *.log
@@ -41,3 +42,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# Turborepo
+.turbo

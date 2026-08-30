@@ -1,0 +1,16 @@
+---
+description: Colocation and naming convention for unit tests
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Unit Tests
+
+Colocate each unit test with the source file it tests. Name the test by
+appending `.spec` before the source file extension:
+
+- `thing.ts` → `thing.spec.ts`
+- `Component.tsx` → `Component.spec.tsx`
+
+Keep the test in the same directory as its source file. Do not place unit
+tests in a separate test directory or use a different suffix.

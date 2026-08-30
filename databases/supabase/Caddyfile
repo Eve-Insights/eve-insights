@@ -1,0 +1,10 @@
+:80 {
+	# supabase-js talks to {SUPABASE_URL}/rest/v1, matching hosted Supabase.
+	handle_path /rest/v1/* {
+		reverse_proxy rest:3000
+	}
+
+	handle {
+		reverse_proxy rest:3000
+	}
+}

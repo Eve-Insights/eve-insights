@@ -1,0 +1,43 @@
+name: eve-insights-firebase
+
+services:
+  emulator:
+    build:
+      context: .
+      args:
+        FIREBASE_TOOLS_VERSION: 14.19.0
+    image: eve-insights/firebase-emulator:14.19.0
+    container_name: eve-insights-firebase-emulator
+    environment:
+      FIREBASE_PROJECT_ID: eve-insights
+      FIREBASE_DATA_DIR: /srv/firebase/data
+      # Keeps emulator state off the real project even if credentials leak in.
+      GOOGLE_APPLICATION_CREDENTIALS: ""
+    ports:
+      - "4000:4000"   # Emulator UI
+      - "4400:4400"   # Emulator hub
+      - "4500:4500"   # Logging
+      - "8080:8080"   # Firestore
+      - "8085:8085"   # Pub/Sub
+      - "9000:9000"   # Realtime Database
+      - "9099:9099"   # Auth
+      - "9199:9199"   # Storage
+    volumes:
+      # Config is mounted, not baked in, so edits take effect on restart.
+      - ./firebase.json:/srv/firebase/firebase.json:ro
+      - ./.firebaserc:/srv/firebase/.firebaserc:ro
+      - ./firestore.rules:/srv/firebase/firestore.rules:ro
+      - ./firestore.indexes.json:/srv/firebase/firestore.indexes.json:ro
+      - ./database.rules.json:/srv/firebase/database.rules.json:ro
+      - ./storage.rules:/srv/firebase/storage.rules:ro
+      # Exported on shutdown, re-imported on the next start.
+      - ./data:/srv/firebase/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4400/emulators').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    # `emulators:start` traps SIGINT/SIGTERM to run the export; give it room.
+    stop_grace_period: 30s
+    restart: unless-stopped

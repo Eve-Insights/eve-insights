@@ -1,11 +1,22 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
-  "globalDependencies": ["biome.json", ".nvmrc"],
+  "globalDependencies": [
+    "biome.json",
+    ".nvmrc",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**", ".eve/**"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        ".eve/**",
+        ".vercel/output/**"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"]
@@ -13,13 +24,30 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "eval": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "passThroughEnv": [
+        "AI_GATEWAY_API_KEY",
+        "VERCEL_OIDC_TOKEN",
+        "EVE_INSIGHTS_URL",
+        "EVE_INSIGHTS_AGENT_NAME"
+      ]
+    },
     "lint": {},
     "clean": {
       "cache": false
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalPassThroughEnv": [
+    "GITHUB_REF_NAME",
+    "GITHUB_TOKEN",
+    "NPM_TOKEN",
+    "NODE_AUTH_TOKEN"
+  ]
 }
