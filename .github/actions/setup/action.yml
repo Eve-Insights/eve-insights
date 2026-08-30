@@ -1,0 +1,23 @@
+name: Setup
+description: Install pnpm, Node and the workspace dependencies.
+
+inputs:
+  registry-url:
+    description: npm registry to authenticate against. Only needed for publishing.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
