@@ -5,6 +5,15 @@ on:
     branches: [main, develop, "release/*", "hotfix/*"]
   pull_request:
     branches: [main, develop, "release/*"]
+  # Publishing a beta from develop is a deliberate act, not a side effect of
+  # merging. The trusted publisher npm holds is bound to this filename, so the
+  # manual trigger has to live here rather than in a workflow of its own.
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a release from this branch (develop publishes a beta prerelease)."
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -194,7 +203,7 @@ jobs:
     # needs.ci.result is then what actually gates publishing.
     # Keep on one line: a folded (>) scalar preserves newlines for more-indented
     # continuation lines and GitHub cannot evaluate the result.
-    if: ${{ !cancelled() && needs.ci.result == 'success' && github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref_name, 'release/')) }}
+    if: ${{ !cancelled() && needs.ci.result == 'success' && ((github.event_name == 'push' && (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))) || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

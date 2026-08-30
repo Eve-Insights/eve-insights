@@ -92,14 +92,22 @@ a pull request — so `--no-verify` will not get a badly formatted commit merged
 | any commit with `BREAKING CHANGE:` in the body | major |
 | `docs`, `chore`, `test`, `ci`, ... | none |
 
-Releases are fully automated. Pushing to `develop` publishes a `beta`
-prerelease, `release/*` publishes an `rc`, and `main` publishes the stable
-version and writes the changelog. Never bump versions or edit `CHANGELOG.md`
-by hand.
-
 Publishing is a job inside the CI workflow that depends on the aggregate `CI`
-check, so a failing lint, typecheck, test or build stops the release rather
-than racing it.
+check, so a failing lint, typecheck, test or build stops a release rather than
+racing it. Never bump versions or edit `CHANGELOG.md` by hand.
+
+| Branch | Trigger | dist-tag |
+| --- | --- | --- |
+| `develop` | **manual** — Actions → CI → Run workflow, tick `publish` | `beta` |
+| `release/*` | automatic, on push | `rc` |
+| `main` | automatic, on merge | `latest` |
+
+A beta is published deliberately rather than on every merge to `develop`, so
+day-to-day integration work does not produce a stream of prereleases.
+
+> The manual trigger lives in `ci.yml` rather than a workflow of its own
+> because npm's trusted publisher is bound to that exact filename. Moving
+> publishing to another file would break OIDC authentication.
 
 ## Branching model
 
