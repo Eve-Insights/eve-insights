@@ -8,7 +8,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded pull request runs are safe to cancel; a push may publish, and
+  # cancelling that mid-release is not.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Optional. When TURBO_TOKEN/TURBO_TEAM are set as secrets, unchanged tasks
@@ -166,7 +168,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [affected, lint, lint-repo, typecheck, test, build]
+    needs: [affected, lint, lint-repo, typecheck, test, build, commitlint]
     runs-on: ubuntu-latest
     steps:
       - name: Fail if any job failed
@@ -179,3 +181,50 @@ jobs:
             exit 1
           fi
           echo "All CI jobs passed or were skipped as unaffected."
+
+  # Publishing is gated on the CI job above, so a failing lint, typecheck, test
+  # or build stops the release rather than racing it.
+  release:
+    name: Release
+    needs: [ci]
+    if: >
+      github.event_name == 'push' &&
+      (github.ref_name == 'main' ||
+       github.ref_name == 'develop' ||
+       startsWith(github.ref_name, 'release/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # semantic-release needs full history and all tags to work out which
+          # commits belong to this release.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          registry-url: https://registry.npmjs.org
+
+      - name: Build
+        run: pnpm build
+
+      # Publishing uses npm trusted publishing (OIDC) when the package has a
+      # trusted publisher registered for this repo + workflow filename; the
+      # `id-token: write` permission above is what makes that possible.
+      # NPM_TOKEN is only a fallback for the very first publish, before the
+      # package exists on npm and a trusted publisher can be configured.
+      # Once OIDC is working, delete the secret and the two env lines below.
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm release
