@@ -97,6 +97,10 @@ prerelease, `release/*` publishes an `rc`, and `main` publishes the stable
 version and writes the changelog. Never bump versions or edit `CHANGELOG.md`
 by hand.
 
+Publishing is a job inside the CI workflow that depends on the aggregate `CI`
+check, so a failing lint, typecheck, test or build stops the release rather
+than racing it.
+
 ## Branching model
 
 We use gitflow. A change travels from a `feature/*` branch, through `develop`
