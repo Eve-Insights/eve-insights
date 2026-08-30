@@ -26,14 +26,20 @@ const branch = process.env.GITHUB_REF_NAME ?? "";
 const commitsChangelog = branch.startsWith("release/") || branch === "main";
 
 const changelogPlugins: GlobalConfig["plugins"] = [
-  ["@semantic-release/changelog", { changelogFile: "packages/reporter/CHANGELOG.md" }],
+  [
+    "@semantic-release/changelog",
+    { changelogFile: "packages/reporter/CHANGELOG.md" },
+  ],
 ];
 
 const gitPlugin: GlobalConfig["plugins"] = [
   [
     "@semantic-release/git",
     {
-      assets: ["packages/reporter/CHANGELOG.md", "packages/reporter/package.json"],
+      assets: [
+        "packages/reporter/CHANGELOG.md",
+        "packages/reporter/package.json",
+      ],
       // Deliberately no `[skip ci]`. GitHub applies skip directives to
       // pull_request as well as push, and this commit becomes the tip of the
       // release branch — so skipping would leave the required `CI` check on the

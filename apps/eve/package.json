@@ -18,12 +18,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@eve-insights/reporter": "workspace:*",
     "@vercel/connect": "1.0.0",
     "ai": "^7.0.58",
     "eve": "^0.47.3",
-    "zod": "4.4.3"
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "@types/node": "24.x",
     "typescript": "7.0.2",
     "vitest": "^4.1.11"

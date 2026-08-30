@@ -1,0 +1,14 @@
+name: eve-insights-databases
+
+# Starts every local database emulator from this directory.
+# Each included file keeps its own project directory, so ./data and
+# bind mounts resolve next to that stack, not here.
+#
+#   docker compose up -d --build
+#   docker compose up -d mysql
+#   docker compose down
+
+include:
+  - path: ./mysql/docker-compose.yml
+  - path: ./supabase/docker-compose.yml
+  - path: ./firebase/docker-compose.yml

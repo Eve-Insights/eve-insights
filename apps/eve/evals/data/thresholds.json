@@ -1,0 +1,4 @@
+{
+  "maxToolCallsPerForecast": 3,
+  "minSimilarity": 0.5
+}

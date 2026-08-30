@@ -1,0 +1,4 @@
+ALTER TABLE `evaluations` ADD CONSTRAINT `evaluations_run_fk` FOREIGN KEY (`run_id`) REFERENCES `runs`(`run_id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `event_chunks` ADD CONSTRAINT `chunks_event_fk` FOREIGN KEY (`run_id`,`event_id`) REFERENCES `events`(`run_id`,`event_id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `events` ADD CONSTRAINT `events_run_fk` FOREIGN KEY (`run_id`) REFERENCES `runs`(`run_id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `sessions` ADD CONSTRAINT `sessions_run_fk` FOREIGN KEY (`run_id`) REFERENCES `runs`(`run_id`) ON DELETE no action ON UPDATE no action;

@@ -1,0 +1,6 @@
+# emulator state, exported on shutdown
+data/
+
+# firebase-tools debug output
+*-debug.log
+.firebase/
