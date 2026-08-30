@@ -1,5 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd ../.. && pnpm exec turbo run build --filter=@eve-insights/insights",
-  "ignoreCommand": "npx turbo-ignore --fallback=HEAD^1"
+  "buildCommand": "cd ../.. && pnpm exec turbo run build --filter=@eve-insights/insights"
 }
