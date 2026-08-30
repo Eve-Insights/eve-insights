@@ -11,6 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Biome is a single repo-wide pass covering root config as well as the
+  # workspaces, so it stays one check. Its output names the offending file.
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -19,32 +21,72 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm lint
 
+  # Typecheck, test and build fan out per workspace so a failure names the
+  # workspace in the checks list instead of hiding inside one combined job.
+  # fail-fast is off so one broken workspace does not mask the others.
   typecheck:
-    name: Typecheck
+    name: Typecheck / ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: website, package: "@eve-insights/website" }
+          - { name: docs, package: "@eve-insights/docs" }
+          - { name: platform, package: "@eve-insights/platform" }
+          - { name: agent, package: "@eve-insights/agent" }
+          - { name: reporter, package: "@eve-insights/reporter" }
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      # Not redundant with build: `next build` typechecks its own project, but
-      # tsup (reporter) and eve build (agent) do not, and neither covers test
-      # files outside the build graph.
-      - run: pnpm typecheck
+      # Name the summary page after the workspace it covers.
+      - name: Label the job summary
+        run: echo "# Typecheck / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - run: pnpm exec turbo run typecheck --filter=${{ matrix.package }}
 
   test:
-    name: Test
+    name: Test / ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: website, package: "@eve-insights/website" }
+          - { name: docs, package: "@eve-insights/docs" }
+          - { name: platform, package: "@eve-insights/platform" }
+          - { name: agent, package: "@eve-insights/agent" }
+          - { name: reporter, package: "@eve-insights/reporter" }
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      - run: pnpm test
+      # Vitest's job-summary header is a fixed string, so label the summary
+      # with the workspace before the report is appended to it.
+      - name: Label the job summary
+        run: echo "# Test / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - run: pnpm exec turbo run test --filter=${{ matrix.package }}
 
   build:
-    name: Build
+    name: Build / ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: website, package: "@eve-insights/website" }
+          - { name: docs, package: "@eve-insights/docs" }
+          - { name: platform, package: "@eve-insights/platform" }
+          - { name: agent, package: "@eve-insights/agent" }
+          - { name: reporter, package: "@eve-insights/reporter" }
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      - run: pnpm build
+      # Name the summary page after the workspace it covers.
+      - name: Label the job summary
+        run: echo "# Build / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - run: pnpm exec turbo run build --filter=${{ matrix.package }}
 
   commitlint:
     name: Commit messages
