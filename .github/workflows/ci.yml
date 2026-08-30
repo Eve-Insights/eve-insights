@@ -10,96 +10,136 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Optional. When TURBO_TOKEN/TURBO_TEAM are set as secrets, unchanged tasks
+  # are restored from the remote cache instead of re-run.
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
 jobs:
-  # Fans out like the other tasks so a lint failure names its workspace.
-  # The `repo` entry runs the authoritative full-repo pass: nine files
-  # (biome.json, turbo.json, release.config.ts, .agents/…) live outside every
-  # workspace, and a pure workspace matrix would silently stop checking them.
+  # Works out which workspaces a task actually has to run for, using Turborepo's
+  # own dependency graph — a change to the reporter fans out to everything that
+  # depends on it, and a change to root config invalidates all of them.
+  affected:
+    name: Detect affected workspaces
+    runs-on: ubuntu-latest
+    outputs:
+      lint: ${{ steps.detect.outputs.lint }}
+      typecheck: ${{ steps.detect.outputs.typecheck }}
+      test: ${{ steps.detect.outputs.test }}
+      build: ${{ steps.detect.outputs.build }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Detect
+        id: detect
+        run: |
+          set -euo pipefail
+
+          # Compare against the PR's base, or the previous commit on a push.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          # A new branch reports an all-zero "before"; fall back to running
+          # everything rather than silently skipping.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "No usable base ref — running every workspace."
+            FILTER=""
+          else
+            echo "Comparing against $BASE"
+            FILTER="--filter=...[$BASE]"
+          fi
+
+          for TASK in lint typecheck test build; do
+            # shellcheck disable=SC2086
+            MATRIX=$(pnpm exec turbo run "$TASK" $FILTER --dry-run=json 2>/dev/null \
+              | jq -c '[.tasks[].package | select(. != "//")
+                        | {name: sub("^@eve-insights/"; ""), package: .}]
+                       | unique_by(.package)')
+            echo "$TASK: $MATRIX"
+            echo "$TASK=$MATRIX" >> "$GITHUB_OUTPUT"
+          done
+
   lint:
     name: Lint / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.lint != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { name: website, path: web/website }
-          - { name: docs, path: web/docs }
-          - { name: platform, path: apps/platform }
-          - { name: agent, path: examples/agent }
-          - { name: reporter, path: packages/reporter }
-          - { name: repo, path: "." }
+        include: ${{ fromJSON(needs.affected.outputs.lint) }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      - name: Name the summary page after the workspace it covers.
-        run: echo "# Lint / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
-      - run: pnpm exec biome check ${{ matrix.path }}
+      - run: echo "# Lint / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm exec turbo run lint --filter=${{ matrix.package }}
 
-  # Typecheck, test and build fan out per workspace so a failure names the
-  # workspace in the checks list instead of hiding inside one combined job.
-  # fail-fast is off so one broken workspace does not mask the others.
+  # Root config, workflows and .agents metadata sit outside every workspace, so
+  # the workspace matrix above would never cover them. Cheap enough to always run.
+  lint-repo:
+    name: Lint / repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: echo "# Lint / repo" >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm lint
+
   typecheck:
     name: Typecheck / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.typecheck != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { name: website, package: "@eve-insights/website" }
-          - { name: docs, package: "@eve-insights/docs" }
-          - { name: platform, package: "@eve-insights/platform" }
-          - { name: agent, package: "@eve-insights/agent" }
-          - { name: reporter, package: "@eve-insights/reporter" }
+        include: ${{ fromJSON(needs.affected.outputs.typecheck) }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      # Name the summary page after the workspace it covers.
-      - name: Label the job summary
-        run: echo "# Typecheck / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
-
+      - run: echo "# Typecheck / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+      # Not redundant with build: next build typechecks its own project, but
+      # tsup (reporter) and eve build (agent) do not.
       - run: pnpm exec turbo run typecheck --filter=${{ matrix.package }}
 
   test:
     name: Test / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.test != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { name: website, package: "@eve-insights/website" }
-          - { name: docs, package: "@eve-insights/docs" }
-          - { name: platform, package: "@eve-insights/platform" }
-          - { name: agent, package: "@eve-insights/agent" }
-          - { name: reporter, package: "@eve-insights/reporter" }
+        include: ${{ fromJSON(needs.affected.outputs.test) }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      # Vitest's job-summary header is a fixed string, so label the summary
-      # with the workspace before the report is appended to it.
-      - name: Label the job summary
-        run: echo "# Test / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
-
+      # Vitest's job-summary header is a fixed string, so name the page first.
+      - run: echo "# Test / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
       - run: pnpm exec turbo run test --filter=${{ matrix.package }}
 
   build:
     name: Build / ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.build != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { name: website, package: "@eve-insights/website" }
-          - { name: docs, package: "@eve-insights/docs" }
-          - { name: platform, package: "@eve-insights/platform" }
-          - { name: agent, package: "@eve-insights/agent" }
-          - { name: reporter, package: "@eve-insights/reporter" }
+        include: ${{ fromJSON(needs.affected.outputs.build) }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
-      # Name the summary page after the workspace it covers.
-      - name: Label the job summary
-        run: echo "# Build / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
-
+      - run: echo "# Build / ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
       - run: pnpm exec turbo run build --filter=${{ matrix.package }}
 
   commitlint:
@@ -119,3 +159,23 @@ jobs:
           --from ${{ github.event.pull_request.base.sha }}
           --to ${{ github.event.pull_request.head.sha }}
           --verbose
+
+  # Single stable check to make required-status-checks practical: the matrix
+  # jobs above vary in number and can be skipped entirely, which a required
+  # check cannot tolerate.
+  ci:
+    name: CI
+    if: always()
+    needs: [affected, lint, lint-repo, typecheck, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed
+        run: |
+          set -euo pipefail
+          RESULTS='${{ toJSON(needs) }}'
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$RESULTS" | jq -e 'any(.[]; .result == "failure" or .result == "cancelled")' >/dev/null; then
+            echo "::error::At least one CI job failed."
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped as unaffected."

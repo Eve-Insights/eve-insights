@@ -11,6 +11,7 @@
     "deploy": "eve deploy",
     "dev": "eve dev --port 3002",
     "eval": "eve eval",
+    "lint": "biome check",
     "start": "eve start",
     "typecheck": "tsc",
     "test": "vitest run",
