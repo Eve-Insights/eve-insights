@@ -1,0 +1,50 @@
+name: Bug report
+description: Something is not working as expected
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug report.
+  - type: dropdown
+    id: workspace
+    attributes:
+      label: Affected workspace
+      options:
+        - "@eve-insights/reporter"
+        - "@eve-insights/platform"
+        - "@eve-insights/docs"
+        - "@eve-insights/website"
+        - "@eve-insights/agent"
+        - Repository tooling
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, package manager, OS, and relevant package versions.
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Any relevant output. This is rendered as code, so no backticks needed.
+      render: shell

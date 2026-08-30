@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "web/*"
+  - "examples/*"
+  - "packages/*"
+
+allowBuilds:
+  "@biomejs/biome": true
+  "@tailwindcss/oxide": true
+  esbuild: true
+  lefthook: true
+  sharp: true
+  unrs-resolver: true

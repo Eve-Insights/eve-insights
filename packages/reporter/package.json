@@ -1,0 +1,63 @@
+{
+  "name": "@eve-insights/reporter",
+  "version": "0.0.0",
+  "description": "Ships Eve eval telemetry to an Eve Insights platform instance",
+  "license": "MIT",
+  "author": "Jim Drury <jim@jimdrury.co.uk>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jimdrury/eve-insights.git",
+    "directory": "packages/reporter"
+  },
+  "homepage": "https://github.com/jimdrury/eve-insights#readme",
+  "bugs": "https://github.com/jimdrury/eve-insights/issues",
+  "keywords": [
+    "eve",
+    "evals",
+    "reporter",
+    "telemetry",
+    "eve-insights"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "lint": "biome check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "eve": ">=0.47.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "eve": "^0.47.3",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

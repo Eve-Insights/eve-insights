@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest an idea for Eve Insights
+labels: ["enhancement", "triage"]
+body:
+  - type: dropdown
+    id: workspace
+    attributes:
+      label: Affected workspace
+      options:
+        - "@eve-insights/reporter"
+        - "@eve-insights/platform"
+        - "@eve-insights/docs"
+        - "@eve-insights/website"
+        - "@eve-insights/agent"
+        - Repository tooling
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation you are in, not just the feature you want.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
